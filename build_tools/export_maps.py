@@ -1,13 +1,11 @@
 import collections
-import copy
 import gimpfu
+import logging
 import os
 import os.path
 import six
 import sys
 import toml
-
-import logging
 
 if six.PY3:
     import abc.abc as abc
@@ -49,7 +47,9 @@ def process(path):
 
 def _is_collection(item):
     # Python2 doesn't have collection (sized, iterable container)
-
+    # Never treat strings as collections even though they are
+    if isinstance(item, basestring):
+        return False
     if six.PY3 and isinstance(item, collections.Collection):
         return True
     elif six.PY2 and isinstance(item, collections.Iterable) and isinstance(item, collections.Container) and isinstance(item, collections.Sized):
@@ -78,6 +78,11 @@ def _merge(v1, v2):
     else:
         handled_abcs = (abc.Mapping, abc.Collection)
 
+
+    # Avoiding sequence/collection steps below
+    if isinstance(v2, basestring):
+        return v2
+
     if isinstance(v1, abc.Mapping) and isinstance(v2, abc.Mapping):
         res = {}
         for k in set(v1.keys()) | set(v2.keys()):
@@ -93,7 +98,7 @@ def _merge(v1, v2):
 
     # Possible it could be a non-sequential collection, in which case comparing
     # this way would be nonsensical
-    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence):
+    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence) and not isinstance(v1, basestring):
         res = list(v1)
         for idx, element in enumerate(v2):
             if idx >= len(res):
