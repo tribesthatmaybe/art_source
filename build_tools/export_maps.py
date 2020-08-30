@@ -22,12 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 def process(path):
-    print('process')
     results = []
 
     if os.path.isfile(path):
         base, ext = os.path.splitext(path)
-        print((base, ext))
         if ext != '.xcf':
             # May wish to raise an exception
             return None
@@ -126,11 +124,13 @@ def handle(gimp_filepath, sidecar_filepath):
 
     else:
         # ToDo may want to include some sort of per-directory defaults,
-        # not sure how
-        raise
+        # not sure which way I'd want to do that.
+        raise NoSidecar("Sidecar file {} does not exist!".format(sidecar_filepath))
+
+    all_layers = config.pop(ALL_LAYERS)
 
     for target, target_conf in config.items():
-
+        target_conf = _merge(all_layers, target_conf)
         export_image = gimpfu.pdb.gimp_image_duplicate(image)
         for layer in export_image.layers:
             print((layer, layer.name, layer.parent, layer.children))
@@ -143,8 +143,6 @@ def handle(gimp_filepath, sidecar_filepath):
             layer.visible = False
 
         export_layer = gimpfu.pdb.gimp_image_merge_visible_layers(export_image, gimpfu.CLIP_TO_IMAGE)
-        print('el')
-        print(export_image.layers)
         gimpfu.pdb.file_png_save(
             export_image, export_layer, target,
             os.path.basename(target), 0, 9, 1, 1, 1, 1, 1)
