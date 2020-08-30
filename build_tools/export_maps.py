@@ -36,8 +36,11 @@ def process(path):
 
         return [handle(path, base + TOML_EXT)]
     elif os.path.isdir(path):
+
         for dirpath, dirnames, filenames in os.walk(path):
-            for filename in [filename for filename in filenames if os.path.splitext(filename)[1] == '.xcf']:
+
+            for filename in [filename for filename in filenames
+                             if os.path.splitext(filename)[1] == '.xcf']:
 
                 results += process(os.path.join(dirpath, filename)) or []
 
@@ -108,7 +111,12 @@ def _merge(v1, v2):
 
     # Neither a mapping nor a collection, just use v2
     return v2
+
+
 def handle(gimp_filepath, sidecar_filepath):
+    """
+    Handle building maps from a single gimp file
+    """
 
     image = gimpfu.pdb.gimp_file_load(
         gimp_filepath,
@@ -133,7 +141,7 @@ def handle(gimp_filepath, sidecar_filepath):
         target_conf = _merge(all_layers, target_conf)
         export_image = gimpfu.pdb.gimp_image_duplicate(image)
         for layer in export_image.layers:
-            print((layer, layer.name, layer.parent, layer.children))
+            print((layer,layer.name, layer.parent, layer.children))
             print(target_conf)
             if layer.name in target_conf.get('enabled_layers', []):
                 print('making {} visible'.format(layer.name))
