@@ -71,8 +71,6 @@ def _merge(v1, v2):
 
     """
 
-    print('merging {} and {}'.format(v1, v2))
-
     if six.PY2:
         handled_abcs = (abc.Mapping,)
     else:
@@ -86,7 +84,6 @@ def _merge(v1, v2):
     if isinstance(v1, abc.Mapping) and isinstance(v2, abc.Mapping):
         res = {}
         for k in set(v1.keys()) | set(v2.keys()):
-            print('checking key ' + k)
             if k not in v2:
                 res[k] = v1[k]
             elif k not in v1:
@@ -129,8 +126,6 @@ def handle(gimp_filepath, sidecar_filepath):
         run_mode=gimpfu.RUN_NONINTERACTIVE
     )
 
-    layer_by_name = dict((layer.name, layer) for layer in image.layers)
-
     if os.path.isfile(sidecar_filepath):
         with open(sidecar_filepath, 'r') as fh:
             config = toml.load(fh)
@@ -146,10 +141,7 @@ def handle(gimp_filepath, sidecar_filepath):
         target_conf = _merge(all_layers, target_conf)
         export_image = gimpfu.pdb.gimp_image_duplicate(image)
         for layer in export_image.layers:
-            print((layer,layer.name, layer.parent, layer.children))
-            print(target_conf)
             if layer.name in target_conf.get('enabled_layers', []):
-                print('making {} visible'.format(layer.name))
                 layer.visible = True
                 continue
                 gimpfu.pdb.gimp_image_delete(export_image)
@@ -172,6 +164,7 @@ def main():
 
 class NoSidecar(object):
     pass
+
 
 if __name__ == '__main__':
     main()
