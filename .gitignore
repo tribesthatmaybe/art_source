@@ -4,3 +4,4 @@
 htmlcov
 *.egg-info
 *.whl
+.tox
