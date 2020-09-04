@@ -8,7 +8,7 @@ import sys
 import toml
 
 if six.PY3:
-    import abc.abc as abc
+    import collections.abc as abc
 
 else:
     import collections as abc
@@ -48,7 +48,7 @@ def process(path):
 def _is_collection(item):
     # Python2 doesn't have collection (sized, iterable container)
     # Never treat strings as collections even though they are
-    if isinstance(item, basestring):
+    if isinstance(item, six.string_types):
         return False
     if six.PY3 and isinstance(item, collections.Collection):
         return True
@@ -76,9 +76,8 @@ def _merge(v1, v2):
     else:
         handled_abcs = (abc.Mapping, abc.Collection)
 
-
     # Avoiding sequence/collection steps below
-    if isinstance(v2, basestring):
+    if isinstance(v2, six.string_types):
         return v2
 
     if isinstance(v1, abc.Mapping) and isinstance(v2, abc.Mapping):
@@ -95,7 +94,7 @@ def _merge(v1, v2):
 
     # Possible it could be a non-sequential collection, in which case comparing
     # this way would be nonsensical
-    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence) and not isinstance(v1, basestring):
+    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence) and not isinstance(v1, six.string_types):
         res = list(v1)
         for idx, element in enumerate(v2):
             if idx >= len(res):
@@ -154,8 +153,12 @@ def handle(gimp_filepath, sidecar_filepath):
         gimpfu.pdb.gimp_image_delete(export_image)
 
 
-def main():
-    if len(sys.argv) > 1:
+def main(*paths):
+    if paths:
+        for fp in paths:
+            process(fp)
+
+    elif len(sys.argv) > 1:
         for fp in sys.argv[1:]:
             process(fp)
     else:
