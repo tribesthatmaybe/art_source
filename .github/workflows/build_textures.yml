@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - mainline
+    paths:
+      - '*.xcf'
+
+jobs:
+  export_textures:
+    env:
+      EXPORT_ROOT: "artifacts"
+    steps:
+      - id: "checkout"
+        uses: actions/checkout@v2
+      - name: generate export list
+        id: "export_genlist"
+        run: ./scripts/get_changed_sources.py > changed_sources.json
+      - name: "Export sources to pngs"
+        id: "png_export"
+        env:
+          CHANGED_JSON: "changed_sources.json"
+        # make all is a bit inefficient, but works for now when there
+        # are literally 4 source files.
+        run: make all
+      - name: "upload zeee .png artifacts!"
+        id: "png_artifact_upload"
+        uses: "actions/upload-artifact@v2"
+        with:
+          path: "artifacts"
+
+    # ToDo
+
+
