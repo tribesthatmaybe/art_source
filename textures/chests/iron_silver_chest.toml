@@ -1,0 +1,6 @@
+['all']
+enabled_layers = ["main"]
+['ironchest/textures/model/chest/iron_chest.png']
+enabled_layers = []
+['ironchest/textures/model/chest/silver_chest.png']
+enabled_layers = ["silver"]
