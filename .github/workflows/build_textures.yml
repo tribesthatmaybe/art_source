@@ -12,6 +12,8 @@ jobs:
     steps:
       - id: "checkout"
         uses: actions/checkout@v2
+      - id: "setup_env"
+        run: pip install wheel
       - name: generate export list
         id: "export_genlist"
         run: ./scripts/get_changed_sources.py > changed_sources.json
