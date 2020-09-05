@@ -4,10 +4,14 @@
 files := $(shell scripts/get_changed_sources.py --ext .xcf)
 .PHONY: changed build_container clean $(files)
 
-DOCKER_IMAGE=tribesthatmaybe/art_build:later
-WHEEL=build_tools/tribes_art_build_tools-13-py2-none-any.whl
+DOCKER_IMAGE = tribesthatmaybe/art_build:later
+WHEEL = build_tools/tribes_art_build_tools-13-py2-none-any.whl
 
-$(WHEEL):
+ifdef EXPORT_ROOT
+	OUT_DIR = --export_root $(EXPORT_ROOT)
+endif
+
+$(WHEEL): clean
 	cd build_tools && python2 setup.py bdist_wheel -d .
 
 build_container: $(WHEEL)
@@ -16,7 +20,10 @@ build_container: $(WHEEL)
 changed: $(files)
 
 $(files): build_container
-	docker run -v "$(shell pwd):/source" $(DOCKER_IMAGE) $@
+	docker run -v "$(shell pwd):/source" $(DOCKER_IMAGE) $(OUT_DIR) $@
+
+all: build_container
+	docker run -v "$(shell pwd):/source" $(DOCKER_IMAGE) $(OUT_DIR) .
 
 clean:
 	rm -f $(WHEEL)

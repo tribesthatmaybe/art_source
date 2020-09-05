@@ -1,25 +1,28 @@
+import argparse
 import collections
 import gimpfu
 import logging
 import os
 import os.path
+import shlex
 import six
 import sys
 import toml
 
 if six.PY3:
-    import abc.abc as abc
+    import collections.abc as abc
 
 else:
     import collections as abc
 
 TOML_EXT = '.toml'
-ALL_LAYERS = 'all'
+ALL_LAYERS = ALL_VISIBLE = 'all'
 
 logger = logging.getLogger(__name__)
 
 
-def process(path):
+def process(path, export_root=None):
+    print("processing `{}`...".format(os.path.abspath(path)))
     results = []
 
     if os.path.isfile(path):
@@ -32,7 +35,7 @@ def process(path):
             logger.warn('No build sidecar found for {}!'.format(path))
             return None
 
-        return [handle(path, base + TOML_EXT)]
+        return [handle(path, base + TOML_EXT, export_root=export_root)]
     elif os.path.isdir(path):
 
         for dirpath, dirnames, filenames in os.walk(path):
@@ -40,7 +43,7 @@ def process(path):
             for filename in [filename for filename in filenames
                              if os.path.splitext(filename)[1] == '.xcf']:
 
-                results += process(os.path.join(dirpath, filename)) or []
+                results += process(os.path.join(dirpath, filename), export_root=export_root) or []
 
     return results
 
@@ -48,7 +51,7 @@ def process(path):
 def _is_collection(item):
     # Python2 doesn't have collection (sized, iterable container)
     # Never treat strings as collections even though they are
-    if isinstance(item, basestring):
+    if isinstance(item, six.string_types):
         return False
     if six.PY3 and isinstance(item, collections.Collection):
         return True
@@ -76,9 +79,8 @@ def _merge(v1, v2):
     else:
         handled_abcs = (abc.Mapping, abc.Collection)
 
-
     # Avoiding sequence/collection steps below
-    if isinstance(v2, basestring):
+    if isinstance(v2, six.string_types):
         return v2
 
     if isinstance(v1, abc.Mapping) and isinstance(v2, abc.Mapping):
@@ -95,7 +97,7 @@ def _merge(v1, v2):
 
     # Possible it could be a non-sequential collection, in which case comparing
     # this way would be nonsensical
-    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence) and not isinstance(v1, basestring):
+    elif isinstance(v1, abc.Sequence) and isinstance(v2, abc.Sequence) and not isinstance(v1, six.string_types):
         res = list(v1)
         for idx, element in enumerate(v2):
             if idx >= len(res):
@@ -115,7 +117,7 @@ def _merge(v1, v2):
     return v2
 
 
-def handle(gimp_filepath, sidecar_filepath):
+def handle(gimp_filepath, sidecar_filepath, export_root=None):
     """
     Handle building maps from a single gimp file
     """
@@ -135,35 +137,82 @@ def handle(gimp_filepath, sidecar_filepath):
         # not sure which way I'd want to do that.
         raise NoSidecar("Sidecar file {} does not exist!".format(sidecar_filepath))
 
-    all_layers = config.pop(ALL_LAYERS)
+    all_layers = config.pop(ALL_LAYERS, {})
 
     for target, target_conf in config.items():
+
+        if export_root:
+            if os.path.isabs(target):
+                msg = ''.join('Cannot export to absolute path ' + target,
+                              'when `EXPORT_ROOT` environment variable is set!')
+                raise ValueError(msg)
+            target = os.path.join(export_root, target)
+
+        if not os.path.isdir(os.path.dirname(target)):
+            os.makedirs(os.path.dirname(target))
+
+        print('target: {}'.format(target))
+
         target_conf = _merge(all_layers, target_conf)
         export_image = gimpfu.pdb.gimp_image_duplicate(image)
-        for layer in export_image.layers:
-            if layer.name in target_conf.get('enabled_layers', []):
-                layer.visible = True
-                continue
-                gimpfu.pdb.gimp_image_delete(export_image)
-            layer.visible = False
 
-        export_layer = gimpfu.pdb.gimp_image_merge_visible_layers(export_image, gimpfu.CLIP_TO_IMAGE)
+        if target_conf.get('enabled_layers') != ALL_VISIBLE:
+            # all visible means we show all visible layers, don't change any
+            # visibility
+
+            for layer in export_image.layers:
+                if layer.name in target_conf.get('enabled_layers', []):
+                    layer.visible = True
+                    continue
+                    gimpfu.pdb.gimp_image_delete(export_image)
+                layer.visible = False
+
+        export_layer = gimpfu.pdb.gimp_image_merge_visible_layers(
+            export_image, gimpfu.CLIP_TO_IMAGE)
         gimpfu.pdb.file_png_save(
             export_image, export_layer, target,
             os.path.basename(target), 0, 9, 1, 1, 1, 1, 1)
         gimpfu.pdb.gimp_image_delete(export_image)
 
 
-def main():
-    if len(sys.argv) > 1:
-        for fp in sys.argv[1:]:
-            process(fp)
+def entrypoint(args):
+    """
+    Entrypoint function for the bash entrypoint script to use, accepts the args
+    to parse as a string, shlexes and passes to main.
+    """
+
+    print(args)
+
+    return main(args=shlex.split(args))
+
+
+def main(paths=None, export_root=None, args=None):
+
+    print(args)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('paths', nargs='*')
+    parser.add_argument('--export_root')
+
+    args = parser.parse_args(args)
+    print(args)
+
+    if paths is None:
+        paths = args.paths
+
+    if export_root is None:
+        export_root = args.export_root
+
+    if paths:
+        for fp in paths:
+            process(fp, export_root=export_root)
     else:
-        process(os.getcwd())
+        process(os.getcwd(), export_root=export_root)
 
 
 class NoSidecar(object):
     pass
+
 
 if __name__ == '__main__':
     main()
