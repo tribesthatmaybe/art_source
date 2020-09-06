@@ -25,10 +25,11 @@ jobs:
         # are literally 4 source files.
         run: make all
       - name: "upload zeee .png artifacts!"
-        id: "png_artifact_upload"
+        id: "upload_textures"
         uses: "actions/upload-artifact@v2"
         with:
           path: "artifacts"
+          name: "textures-latest"
 
     # ToDo
 
